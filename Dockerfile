@@ -11,10 +11,10 @@ COPY . /app
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# --- Expose HF Spaces default port ---
-EXPOSE 7860
+# --- Expose FastAPI port ---
+EXPOSE 8000
 
 # --- Run FastAPI ---
-# app.py is the root file, imports app from app.main
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
-
+# Module path: app.app → folder 'app', file 'app.py'
+# Variable name: app → FastAPI instance
+CMD ["uvicorn", "app.app:app", "--host", "0.0.0.0", "--port", "8000"]
