@@ -159,6 +159,4 @@ async def receive_request(request: Request, background_tasks: BackgroundTasks):
     # Immediate HTTP 200 acknowledgment
     return {"status": "accepted", "note": f"processing round {data['round']} started"}
 
-@app.get("/")
-def root():
-    return {"status": "ok"}
+
