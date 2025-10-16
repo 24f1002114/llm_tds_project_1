@@ -1,6 +1,11 @@
+# app.py
 from fastapi import FastAPI, Request, BackgroundTasks
 import os, json, base64
 from dotenv import load_dotenv
+from fastapi.middleware.wsgi import WSGIMiddleware
+import gradio as gr
+
+# --- Your modules ---
 from app.llm_generator import generate_app_code, decode_attachments
 from app.github_utils import (
     create_repo,
@@ -16,9 +21,10 @@ USER_SECRET = os.getenv("USER_SECRET")
 USERNAME = os.getenv("GITHUB_USERNAME")
 PROCESSED_PATH = "/tmp/processed_requests.json"
 
+# --- FastAPI instance ---
 app = FastAPI()
 
-# === Persistence for processed requests ===
+# --- Persistence helpers ---
 def load_processed():
     if os.path.exists(PROCESSED_PATH):
         try:
@@ -30,7 +36,7 @@ def load_processed():
 def save_processed(data):
     json.dump(data, open(PROCESSED_PATH, "w"), indent=2)
 
-# === Background task ===
+# --- Background task ---
 def process_request(data):
     round_num = data.get("round", 1)
     task_id = data["task"]
@@ -41,8 +47,7 @@ def process_request(data):
     print("Attachments saved:", saved_attachments)
 
     repo = create_repo(task_id, description=f"Auto-generated app for task: {data['brief']}")
-    
-    # Optional: fetch previous README for round 2
+
     prev_readme = None
     if round_num == 2:
         try:
@@ -58,18 +63,14 @@ def process_request(data):
         checks=data.get("checks", []),
         round_num=round_num,
         prev_readme=prev_readme
-        )
+    )
 
     files = gen.get("files", {})
     saved_info = gen.get("attachments", [])
 
-    # Step 1: Get or create repo
-    #repo = create_repo(task_id, description=f"Auto-generated app for task: {data['brief']}")
-
-    # Step 2: Round-specific logic
+    # Round 1: add attachments
     if round_num == 1:
         print("🏗 Round 1: Building fresh repo...")
-        # Add attachments
         for att in saved_info:
             path = att["name"]
             try:
@@ -86,24 +87,22 @@ def process_request(data):
                 print("⚠ Attachment commit failed:", e)
     else:
         print("🔁 Round 2: Revising existing repo...")
-        # For round 2, update existing code and README
-        # Commit new files on top of existing repo
         for fname, content in files.items():
             create_or_update_file(repo, fname, content, f"Update {fname} for round 2")
 
-    # Step 3: Common steps for both rounds
+    # Common: add/update all files
     for fname, content in files.items():
         create_or_update_file(repo, fname, content, f"Add/Update {fname}")
 
+    # Add MIT license
     mit_text = generate_mit_license()
     create_or_update_file(repo, "LICENSE", mit_text, "Add MIT license")
 
-    # Step 6: Handle GitHub Pages enablement or reuse existing
-    if data["round"] == 1:
+    # GitHub Pages
+    if round_num == 1:
         pages_ok = enable_pages(task_id)
         pages_url = f"https://{USERNAME}.github.io/{task_id}/" if pages_ok else None
     else:
-        # For round 2 or later, Pages already exist
         pages_ok = True
         pages_url = f"https://{USERNAME}.github.io/{task_id}/"
 
@@ -131,14 +130,12 @@ def process_request(data):
 
     print(f"✅ Finished round {round_num} for {task_id}")
 
-
-# === Main endpoint ===
+# --- API endpoints ---
 @app.post("/api-endpoint")
 async def receive_request(request: Request, background_tasks: BackgroundTasks):
     data = await request.json()
     print("📩 Received request:", data)
 
-    # Step 0: Verify secret
     if data.get("secret") != USER_SECRET:
         print("❌ Invalid secret received.")
         return {"error": "Invalid secret"}
@@ -146,19 +143,22 @@ async def receive_request(request: Request, background_tasks: BackgroundTasks):
     processed = load_processed()
     key = f"{data['email']}::{data['task']}::round{data['round']}::nonce{data['nonce']}"
 
-    # Duplicate detection
     if key in processed:
         print(f"⚠ Duplicate request detected for {key}. Re-notifying only.")
         prev = processed[key]
         notify_evaluation_server(data.get("evaluation_url"), prev)
         return {"status": "ok", "note": "duplicate handled & re-notified"}
 
-    # Schedule background task (non-blocking)
     background_tasks.add_task(process_request, data)
-
-    # Immediate HTTP 200 acknowledgment
     return {"status": "accepted", "note": f"processing round {data['round']} started"}
 
 @app.get("/")
 def root():
     return {"status": "ok", "note": "API running locally"}
+
+# --- Gradio wrapper for Hugging Face Spaces ---
+def dummy_gradio_fn(text):
+    return "API is running"
+
+iface = gr.Interface(dummy_gradio_fn, "text", "text")
+gr.mount_gradio_app(app, iface)
