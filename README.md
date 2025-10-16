@@ -1,5 +1,5 @@
 ---
-title: Tds Project-1
+title: tds_project-1
 emoji: 🐨
 colorFrom: gray
 colorTo: indigo
@@ -8,4 +8,3 @@ pinned: false
 license: cc0-1.0
 app_file: Dockerfile
 ---
-
