@@ -16,6 +16,5 @@ EXPOSE 7860
 
 # --- Run FastAPI ---
 # app.py is the root file, imports app from app.main
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
-
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
 
