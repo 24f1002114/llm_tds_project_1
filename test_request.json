@@ -1,0 +1,15 @@
+{
+  "secret": "anshul1999",
+  "email": "test@example.com",
+  "task": "test-task-001",
+  "round": 1,
+  "nonce": "test-nonce-123",
+  "brief": "Create a simple hello world HTML page with a button that shows an alert",
+  "checks": [
+    "Page displays 'Hello World'",
+    "Button exists",
+    "Button shows alert on click"
+  ],
+  "evaluation_url": "https://httpbin.org/post",
+  "attachments": []
+}

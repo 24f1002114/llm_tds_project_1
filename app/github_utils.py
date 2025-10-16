@@ -38,18 +38,21 @@ def create_repo(repo_name: str, description: str = ""):
 def create_or_update_file(repo, path: str, content: str, message: str):
     """
     Create a file or update if it already exists.
+    Returns the commit object.
     """
     try:
         # Try to get file to see if exists
         current = repo.get_contents(path)
         sha = current.sha
-        repo.update_file(path, message, content, sha)
+        result = repo.update_file(path, message, content, sha)
         print(f"Updated {path} in {repo.full_name}")
+        return result  # Returns a dict with 'commit' and 'content'
     except GithubException as e:
         # If 404 (not found) then create
         if e.status == 404:
-            repo.create_file(path, message, content)
+            result = repo.create_file(path, message, content)
             print(f"Created {path} in {repo.full_name}")
+            return result  # Returns a dict with 'commit' and 'content'
         else:
             # some other error
             raise
@@ -59,35 +62,37 @@ def create_or_update_binary_file(repo, path: str, binary_content, commit_message
     """
     Create or update a binary file in the repository.
     This function handles binary data like images directly without encoding/decoding.
+    Returns the commit object.
     """
     try:
         # Try to get file to see if exists
         try:
             current = repo.get_contents(path)
             # Update existing file
-            repo.update_file(
+            result = repo.update_file(
                 path=path,
                 message=commit_message,
                 content=binary_content,
                 sha=current.sha
             )
             print(f"Updated binary file {path} in {repo.full_name}")
+            return result
         except GithubException as e:
             # If file doesn't exist, create it
             if e.status == 404:
-                repo.create_file(
+                result = repo.create_file(
                     path=path,
                     message=commit_message,
                     content=binary_content
                 )
                 print(f"Created binary file {path} in {repo.full_name}")
+                return result
             else:
                 # some other error
                 raise
-        return True
     except Exception as e:
         print(f"Error creating/updating binary file {path}: {e}")
-        return False
+        return None
 
 def enable_pages(repo_name: str, branch: str = "main"):
     """
@@ -133,4 +138,4 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-""" 
+"""

@@ -75,7 +75,14 @@ def _strip_code_block(text: str) -> str:
     if "```" in text:
         parts = text.split("```")
         if len(parts) >= 2:
-            return parts[1].strip()
+            # Remove language identifier if present (e.g., ```html)
+            inner = parts[1]
+            if '\n' in inner:
+                lines = inner.split('\n', 1)
+                # If first line looks like a language identifier, skip it
+                if lines[0].strip() and not lines[0].strip().startswith('<'):
+                    return lines[1].strip() if len(lines) > 1 else inner.strip()
+            return inner.strip()
     return text.strip()
 
 def generate_readme_fallback(brief: str, checks=None, attachments_meta=None, round_num=1):
@@ -101,7 +108,7 @@ This README was generated as a fallback (OpenAI did not return an explicit READM
 
 def generate_app_code(brief: str, attachments=None, checks=None, round_num=1, prev_readme=None):
     """
-    Generate or revise an app using the OpenAI Responses API.
+    Generate or revise an app using the OpenAI Chat Completions API.
     - round_num=1: build from scratch
     - round_num=2: refactor based on new brief and previous README/code
     """
@@ -140,18 +147,21 @@ You are a professional web developer assistant.
    - Usage
    - If Round 2, describe improvements made from previous version.
 4. Do not include any commentary outside code or README.
+5. Make sure the HTML is complete and functional.
 """
 
     try:
-        response = client.responses.create(
-            model="gpt-5",
-            input=[
+        response = client.chat.completions.create(
+            model="gpt-4o",  # Use gpt-4o, gpt-4-turbo, or gpt-3.5-turbo
+            messages=[
                 {"role": "system", "content": "You are a helpful coding assistant that outputs runnable web apps."},
                 {"role": "user", "content": user_prompt}
-            ]
+            ],
+            temperature=0.7,
+            max_tokens=4000
         )
-        text = response.output_text or ""
-        print("✅ Generated code using new OpenAI Responses API.")
+        text = response.choices[0].message.content or ""
+        print("✅ Generated code using OpenAI Chat Completions API.")
     except Exception as e:
         print("⚠ OpenAI API failed, using fallback HTML instead:", e)
         text = f"""

@@ -78,11 +78,23 @@ def process_request(data):
             print("Attachment commit failed:", e)
 
     # Commit generated files
+    last_commit = None
     for fname, content in files.items():
-        create_or_update_file(repo, fname, content, f"Add/Update {fname}")
+        last_commit = create_or_update_file(repo, fname, content, f"Add/Update {fname}")
 
     mit_text = generate_mit_license()
-    create_or_update_file(repo, "LICENSE", mit_text, "Add MIT license")
+    last_commit = create_or_update_file(repo, "LICENSE", mit_text, "Add MIT license")
+
+    # Get commit SHA from the last commit operation
+    try:
+        if last_commit and 'commit' in last_commit:
+            commit_sha = last_commit['commit'].sha
+        else:
+            # Fallback: fetch from branch
+            commit_sha = repo.get_branch("main").commit.sha
+    except Exception as e:
+        print(f"Failed to get commit SHA: {e}")
+        commit_sha = None
 
     pages_ok = enable_pages(task_id)
     pages_url = f"https://{USERNAME}.github.io/{task_id}/" if pages_ok else None
@@ -93,6 +105,7 @@ def process_request(data):
         "round": round_num,
         "nonce": data["nonce"],
         "repo_url": repo.html_url,
+        "commit_sha": commit_sha,  # Added commit SHA
         "pages_url": pages_url,
     }
     notify_evaluation_server(data.get("evaluation_url"), payload)
@@ -116,12 +129,11 @@ async def receive_request(request: Request, background_tasks: BackgroundTasks):
     background_tasks.add_task(process_request, data)
     return {"status":"accepted","note":f"processing round {data['round']} started"}
 
-#@app.get("/")
-#def root():
-#    return {"status":"ok","note":"API running"}
+@app.get("/")
+def root():
+    return {"status":"ok","note":"API running"}
 
 # Add this at the bottom of app/app.py
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=7860)
-
