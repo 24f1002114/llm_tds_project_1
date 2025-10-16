@@ -11,7 +11,7 @@ from app.github_utils import (
 from app.notify import notify_evaluation_server
 import os, json
 
-USER_SECRET = os.getenv("USER_SECRET", "anshul1999")
+USER_SECRET = os.getenv("USER_SECRET")
 USERNAME = os.getenv("GITHUB_USERNAME")
 PROCESSED_PATH = "/tmp/processed_requests.json"
 
@@ -116,6 +116,12 @@ async def receive_request(request: Request, background_tasks: BackgroundTasks):
     background_tasks.add_task(process_request, data)
     return {"status":"accepted","note":f"processing round {data['round']} started"}
 
-@app.get("/")
-def root():
-    return {"status":"ok","note":"API running"}
+#@app.get("/")
+#def root():
+#    return {"status":"ok","note":"API running"}
+
+# Add this at the bottom of app/app.py
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7860)
+
