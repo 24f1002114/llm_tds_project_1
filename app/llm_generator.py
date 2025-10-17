@@ -4,21 +4,16 @@ import mimetypes
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
-from openai import OpenAI
+import google.generativeai as genai
 
 load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=OPENAI_API_KEY)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+genai.configure(api_key=GEMINI_API_KEY)
 
 TMP_DIR = Path("/tmp/llm_attachments")
 TMP_DIR.mkdir(parents=True, exist_ok=True)
 
 def decode_attachments(attachments):
-    """
-    attachments: list of {name, url: data:<mime>;base64,<b64>}
-    Saves files into /tmp/llm_attachments/<name>
-    Returns list of dicts: {"name": name, "path": "/tmp/..", "mime": mime, "size": n}
-    """
     saved = []
     for att in attachments or []:
         name = att.get("name") or "attachment"
@@ -43,10 +38,6 @@ def decode_attachments(attachments):
     return saved
 
 def summarize_attachment_meta(saved):
-    """
-    saved is list from decode_attachments.
-    Returns a short human-readable summary string for the prompt.
-    """
     summaries = []
     for s in saved:
         nm = s["name"]
@@ -69,17 +60,12 @@ def summarize_attachment_meta(saved):
     return "\\n".join(summaries)
 
 def _strip_code_block(text: str) -> str:
-    """
-    If text is inside triple-backticks, return inner contents. Otherwise return text as-is.
-    """
     if "```" in text:
         parts = text.split("```")
         if len(parts) >= 2:
-            # Remove language identifier if present (e.g., ```html)
             inner = parts[1]
             if '\n' in inner:
                 lines = inner.split('\n', 1)
-                # If first line looks like a language identifier, skip it
                 if lines[0].strip() and not lines[0].strip().startswith('<'):
                     return lines[1].strip() if len(lines) > 1 else inner.strip()
             return inner.strip()
@@ -103,15 +89,10 @@ def generate_readme_fallback(brief: str, checks=None, attachments_meta=None, rou
 2. No build steps required.
 
 ## Notes
-This README was generated as a fallback (OpenAI did not return an explicit README).
+This README was generated as a fallback.
 """
 
 def generate_app_code(brief: str, attachments=None, checks=None, round_num=1, prev_readme=None):
-    """
-    Generate or revise an app using the OpenAI Chat Completions API.
-    - round_num=1: build from scratch
-    - round_num=2: refactor based on new brief and previous README/code
-    """
     saved = decode_attachments(attachments or [])
     attachments_meta = summarize_attachment_meta(saved)
 
@@ -151,25 +132,18 @@ You are a professional web developer assistant.
 """
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o",  # Use gpt-4o, gpt-4-turbo, or gpt-3.5-turbo
-            messages=[
-                {"role": "system", "content": "You are a helpful coding assistant that outputs runnable web apps."},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.7,
-            max_tokens=4000
-        )
-        text = response.choices[0].message.content or ""
-        print("✅ Generated code using OpenAI Chat Completions API.")
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        response = model.generate_content(user_prompt)
+        text = response.text or ""
+        print("✅ Generated code using Google Gemini API.")
     except Exception as e:
-        print("⚠ OpenAI API failed, using fallback HTML instead:", e)
+        print("⚠ Gemini API failed, using fallback HTML instead:", e)
         text = f"""
 <html>
   <head><title>Fallback App</title></head>
   <body>
     <h1>Hello (fallback)</h1>
-    <p>This app was generated as a fallback because OpenAI failed. Brief: {brief}</p>
+    <p>This app was generated as a fallback. Brief: {brief}</p>
   </body>
 </html>
 

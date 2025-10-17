@@ -1,7 +1,7 @@
 {
-  "secret": "anshul1999",
+  "secret": "secret",
   "email": "test@example.com",
-  "task": "test-task-001",
+  "task": "test-task-002",
   "round": 1,
   "nonce": "test-nonce-123",
   "brief": "Create a simple hello world HTML page with a button that shows an alert",
